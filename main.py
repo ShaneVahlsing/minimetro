@@ -1,5 +1,5 @@
 from __future__ import annotations 
-from cmu_graphics import *
+from cmu_graphics import * # type: ignore
 from enum import Enum
 from random import randint, choice
 from itertools import cycle
@@ -16,7 +16,7 @@ import uuid
 # returns true if x and y are in boundary
 # otherwise returns false
 def rectInBoundary(pointX: float, pointY: float, rectX: float, rectY: float, 
-                   width: float, height: float = None, 
+                   width: float, height: float | None = None, 
                    rotateAngle: float = 0) -> bool:
     
     if height == None: 
@@ -66,6 +66,7 @@ class StationType(Enum):
     TRIANGLE = 'drawRegularPolygon 17, 3 | 7, 3'
     STAR = 'drawStar 17, 5 | 7, 5'
 
+    @staticmethod
     def getValue(passengerOrStation: str, stationType: StationType
                  ) -> tuple[str, list[int]]:
         
@@ -137,10 +138,10 @@ class RailManager:
     railColors: Iterator[str] = cycle(['red', 'blue', 'green', 'purple'])
 
     # the rail that is currently being created or modified
-    activeRail: Rail = None
+    activeRail: Rail 
 
     # the stations that bookend the active rail segment
-    activeRailSegment: tuple[Station] = None
+    activeRailSegment: tuple[Station] 
 
     @staticmethod
     def createNewRail(station: Station):
@@ -155,11 +156,15 @@ class RailManager:
     @staticmethod
     def selectRail(rail: Rail, mouseX: float = 0, mouseY: float = 0):
         def mouseOnRailSegment(station1: Station, station2: Station) -> bool:
+            x1: int
+            y1: int
+            x2: int
+            y2: int
             x1, y1 = station1.getPosition()
             x2, y2 = station2.getPosition()
             
             angleOfSegment: float = findAngleOfLine(x1, y1, x2, y2)
-            centerOfSegment: tuple[float] = ((x1+x2)/2, ((y1+y2)/2))
+            centerOfSegment: tuple[float, float] = ((x1+x2)/2, ((y1+y2)/2))
             lengthOfSegment: float = distance(x1, y1, x2, y2)
             
             mouseOnRailSegment: bool = rectInBoundary(mouseX, mouseY, 
@@ -177,7 +182,7 @@ class RailManager:
     @staticmethod
     def deleteRail(rail: Rail):
         RailManager.availableRails += 1
-        RailManager.rails.pop(rail)
+        RailManager.rails.remove(rail)
 
         del(rail)
 
@@ -199,7 +204,7 @@ class StationManager:
     # assigns a random x and y position within spawn range and screen boundaries
     @staticmethod
     def assignPosition(maxScreenWidth: int = 1300, maxScreenHeight: int = 500
-                       ) -> tuple[int]:
+                       ) -> tuple[int, int]:
         
         xSpawnRange: int = pythonRound(
             maxScreenWidth*(StationManager.stationSpawnRange/100)/2)
@@ -208,10 +213,10 @@ class StationManager:
             maxScreenHeight*(StationManager.stationSpawnRange/100)/2)
 
         xPosition: int = min(randint(-xSpawnRange, xSpawnRange) + 
-                             (maxScreenWidth / 2), maxScreenWidth - 20)
+                             pythonRound((maxScreenWidth / 2)), maxScreenWidth - 20)
         
         yPosition: int = min(randint(-ySpawnRange, ySpawnRange) + 
-                             (maxScreenHeight / 2), maxScreenHeight - 20)
+                             pythonRound((maxScreenHeight / 2)), maxScreenHeight - 20)
 
         return xPosition, yPosition
 
@@ -255,7 +260,7 @@ class StationManager:
     @staticmethod
     def spawnStationsOnIntervals():
         if StateManager.clock % StationManager.stationSpawnRate == 0:
-            station: Station = StationManager.spawnStation()
+            station: Station | None = StationManager.spawnStation()
 
             if type(station) == Station:
                 StationManager.stations.append(station)
@@ -304,6 +309,8 @@ class Rail():
         if isinstance(other, Rail):
             return self.id == other.id
         
+        return False
+        
     def draw(self):
         for index, station in enumerate(self.connectedStations):
             if index == len(self.connectedStations)-1:
@@ -346,7 +353,9 @@ class Station():
         if isinstance(other, Station):
             return self.id == other.id
 
-    def getPosition(self) -> tuple[int]:
+        return False
+
+    def getPosition(self) -> tuple[int, int]:
         return self.xPosition, self.yPosition
 
     def addPassenger(self, passenger: Passenger):
@@ -401,7 +410,7 @@ class Locomotive():
 
         self.isFull: bool = False
 
-        self.currentStation: Station = self.rail[0]
+        self.currentStation: Station = self.rail.connectedStations[0]
 
         self.travelingForward: bool = True
 
@@ -459,7 +468,7 @@ class Locomotive():
         drawRect(self.xPosition, self.yPosition, 
                  10, 15, rotateAngle=_rotateAngle, align='center')
 
-    def addLocomotive():
+    def addLocomotive(self):
         print('addLocomotive')
 
 
@@ -477,7 +486,7 @@ class Passenger:
 class Button():
     def __init__(self, xPosition: float, yPosition: float, size: float, 
                  action, icon: str = ' ', color: str = 'grey', 
-                 keybinding: str = None):
+                 keybinding: str | None = None):
         
         GameManager.addInteract(self)
         GameManager.addSprite(self)
@@ -491,7 +500,7 @@ class Button():
         self.xPosition: float = xPosition
         self.yPosition: float = yPosition
 
-        self.keybinding: str = keybinding
+        self.keybinding: str | None = keybinding
 
     # varies the size of the font
     # draws the button rectangle
@@ -501,7 +510,7 @@ class Button():
 
         if len(self.icon)>1:
             size=self.size/len(self.icon)*1.5
-        elif self.icon in '`~!@#$%^&*()-=_+[]\}|,./<>?;{:"':
+        elif self.icon in '`~!@#$%^&*()-=_+[]\\}|,./<>?;{:"':
             size=self.size+5
 
         drawRect(self.xPosition, self.yPosition, self.size, 
